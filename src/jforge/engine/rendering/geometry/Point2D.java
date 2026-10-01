@@ -1,4 +1,4 @@
-package jforge.engine.rendering;
+package jforge.engine.rendering.geometry;
 
 
 public class Point2D {

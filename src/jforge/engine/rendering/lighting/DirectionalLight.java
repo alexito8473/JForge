@@ -1,14 +1,14 @@
-package jforge.engine.rendering;
+package jforge.engine.rendering.lighting;
 
 import jforge.engine.math.Vector3;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class DirectionalLight {
 
     private Vector3 direction;
 
-    private Color color;
+    private final Color color;
 
     private double intensity;
 

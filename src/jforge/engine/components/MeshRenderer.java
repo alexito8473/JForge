@@ -1,7 +1,7 @@
 package jforge.engine.components;
 
-import jforge.engine.rendering.Material;
-import jforge.engine.rendering.Mesh;
+import jforge.engine.rendering.material.Material;
+import jforge.engine.rendering.geometry.Mesh;
 
 public class MeshRenderer {
 

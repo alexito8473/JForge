@@ -1,14 +1,16 @@
-package jforge.engine.rendering;
+package jforge.engine.rendering.softwere;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
+import jforge.engine.rendering.geometry.Point2D;
+
+import java.awt.*;
+import java.util.Arrays;
 
 public class Rasterizer {
 
     private int width;
     private int height;
 
-    private double[] depthBuffer;
+    private float[] depthBuffer;
 
     public Rasterizer(
             int width,
@@ -20,64 +22,25 @@ public class Rasterizer {
         );
     }
 
-    public void resize(
-            int width,
-            int height) {
-
-        this.width =
-                Math.max(
-                        1,
-                        width
-                );
-
-        this.height =
-                Math.max(
-                        1,
-                        height
-                );
-
-        depthBuffer =
-                new double[
-                        this.width *
-                                this.height
-                        ];
-
+    public void resize(int width, int height) {
+        this.width = Math.max(1, width);
+        this.height = Math.max(1, height);
+        depthBuffer = new float[this.width * this.height];
         clearDepth();
     }
 
     public void clearDepth() {
-
-        /*
-         * La cámara mira hacia -Z.
-         *
-         * Un valor muy pequeño significa
-         * que está muy lejos.
-         *
-         * Ejemplo:
-         *
-         * -0.1  -> cerca
-         * -5    -> más lejos
-         * -1000 -> muchísimo más lejos
-         *
-         * Usamos -infinito como valor inicial.
-         */
-        for (int i = 0;
-             i < depthBuffer.length;
-             i++) {
-
-            depthBuffer[i] =
-                    Double.NEGATIVE_INFINITY;
-        }
+        Arrays.fill(depthBuffer, -Float.MAX_VALUE);
     }
 
     public void drawTriangle(
-            BufferedImage image,
+            Framebuffer framebuffer,
             Point2D p1,
             Point2D p2,
             Point2D p3,
             Color color) {
 
-        if (image == null ||
+        if (framebuffer == null ||
                 p1 == null ||
                 p2 == null ||
                 p3 == null ||
@@ -85,6 +48,31 @@ public class Rasterizer {
 
             return;
         }
+
+        /*
+         * Tamaño del framebuffer.
+         */
+        int width =
+                framebuffer.getWidth();
+
+        int height =
+                framebuffer.getHeight();
+
+        /*
+         * Array de píxeles.
+         *
+         * Lo obtenemos UNA SOLA VEZ.
+         */
+        int[] pixels =
+                framebuffer.getPixels();
+
+        /*
+         * Color.
+         *
+         * También lo calculamos una sola vez.
+         */
+        int rgb =
+                color.getRGB();
 
         /*
          * Bounding box del triángulo.
@@ -142,15 +130,25 @@ public class Rasterizer {
 
         maxX =
                 Math.min(
-                        image.getWidth() - 1,
+                        width - 1,
                         maxX
                 );
 
         maxY =
                 Math.min(
-                        image.getHeight() - 1,
+                        height - 1,
                         maxY
                 );
+
+        /*
+         * Si el bounding box no tiene
+         * ningún píxel válido.
+         */
+        if (minX > maxX ||
+                minY > maxY) {
+
+            return;
+        }
 
         /*
          * Área del triángulo.
@@ -169,6 +167,7 @@ public class Rasterizer {
          * Triángulo degenerado.
          */
         if (Math.abs(area) < 0.000001) {
+
             return;
         }
 
@@ -226,7 +225,8 @@ public class Rasterizer {
                         );
 
                 /*
-                 * Aceptar ambos sentidos del triángulo.
+                 * Comprobar si el píxel
+                 * está dentro del triángulo.
                  */
                 boolean inside;
 
@@ -246,6 +246,7 @@ public class Rasterizer {
                 }
 
                 if (!inside) {
+
                     continue;
                 }
 
@@ -264,29 +265,29 @@ public class Rasterizer {
                 /*
                  * Interpolar profundidad.
                  *
-                 * Como estamos trabajando directamente
-                 * con Z en coordenadas de cámara/mundo,
-                 * no invertimos el signo.
+                 * La cámara mira hacia -Z.
+                 *
+                 * Ejemplo:
+                 *
+                 * z = -2  -> cerca
+                 * z = -5  -> lejos
+                 *
+                 * Por eso un Z MAYOR
+                 * está más cerca.
                  */
-                double z =
-                        alpha * p1.z +
-                                beta * p2.z +
-                                gamma * p3.z;
+                float z = (float) (alpha * p1.z + beta * p2.z + gamma * p3.z);
 
+                /*
+                 * Índice del píxel.
+                 */
                 int index =
                         y * width + x;
 
                 /*
-                 * IMPORTANTE:
+                 * Z-buffer.
                  *
-                 * -2 está delante de -5.
-                 *
-                 * Por tanto:
-                 *
-                 * z > depthBuffer[index]
-                 *
-                 * significa que el nuevo píxel está
-                 * más cerca de la cámara.
+                 * Si el nuevo píxel está detrás
+                 * del que ya tenemos, descartarlo.
                  */
                 if (z <= depthBuffer[index]) {
                     continue;
@@ -295,17 +296,16 @@ public class Rasterizer {
                 /*
                  * Guardar profundidad.
                  */
-                depthBuffer[index] =
-                        z;
+                depthBuffer[index] = z;
 
                 /*
-                 * Dibujar píxel.
+                 * Escribir directamente
+                 * en el array de píxeles.
+                 *
+                 * Ya NO usamos setRGB().
                  */
-                image.setRGB(
-                        x,
-                        y,
-                        color.getRGB()
-                );
+                pixels[index] =
+                        rgb;
             }
         }
     }

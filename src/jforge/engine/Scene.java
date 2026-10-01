@@ -1,6 +1,6 @@
 package jforge.engine;
 
-import jforge.engine.rendering.DirectionalLight;
+import jforge.engine.rendering.lighting.DirectionalLight;
 
 import java.util.ArrayList;
 import java.util.Collections;

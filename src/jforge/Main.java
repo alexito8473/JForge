@@ -4,226 +4,94 @@ import jforge.editor.EditorWindow;
 import jforge.engine.GameObject;
 import jforge.engine.Scene;
 import jforge.engine.components.MeshRenderer;
-import jforge.engine.debug.FPSCounter;
-import jforge.engine.rendering.Material;
-import jforge.engine.rendering.Mesh;
-import jforge.engine.rendering.Renderer3D;
-import jforge.engine.rendering.Window;
+import jforge.engine.rendering.*;
+import jforge.engine.rendering.Renderer;
+import jforge.engine.rendering.geometry.Mesh;
+import jforge.engine.rendering.gpu.WindowsGPUPreference;
+import jforge.engine.rendering.material.Material;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class Main {
-
     public static void main(String[] args) {
 
-        SwingUtilities.invokeLater(() -> {
+        /*
+         * Windows debe decidir la GPU antes de crear
+         * el contexto OpenGL.
+         */
+        if (WindowsGPUPreference.isWindows()) {
 
-            // =========================================
-            // ESCENA
-            // =========================================
+            boolean configured =
+                    WindowsGPUPreference
+                            .setHighPerformanceForCurrentJava();
 
-            Scene scene =
-                    new Scene(
-                            "Main Scene"
-                    );
-
-
-            // =========================================
-            // MESH
-            // =========================================
-
-            Mesh cubeMesh =
-                    Mesh.createCube();
-
-
-            // =========================================
-            // PARENT
-            // =========================================
-
-            GameObject parent =
-                    new GameObject(
-                            "Parent"
-                    );
-
-            parent
-                    .getTransform()
-                    .setPosition(
-                            0,
-                            0,
-                            -3
-                    );
-
-            parent
-                    .getTransform()
-                    .setRotation(
-                            0,
-                            45,
-                            0
-                    );
-
-            parent
-                    .getTransform()
-                    .setScale(
-                            1,
-                            1,
-                            1
-                    );
-
-            parent.setMeshRenderer(
-                    new MeshRenderer(
-                            cubeMesh,
-                            new Material(
-                                    Color.RED
-                            )
-                    )
+            System.out.println(
+                    "[GPU] Preferencia High Performance: " +
+                            configured
             );
-
-            scene.add(
-                    parent
+        }
+        try {
+            UIManager.setLookAndFeel(
+                    UIManager.getSystemLookAndFeelClassName()
             );
+        }catch (Exception ignored){
 
-
-            // =========================================
-            // CHILD
-            // =========================================
-
-            GameObject child =
-                    new GameObject(
-                            "Child"
-                    );
-
-            child
-                    .getTransform()
-                    .setPosition(
-                            1.5,
-                            0,
-                            0
-                    );
-
-            child
-                    .getTransform()
-                    .setRotation(
-                            0,
-                            0,
-                            0
-                    );
-
-            child
-                    .getTransform()
-                    .setScale(
-                            0.5,
-                            0.5,
-                            0.5
-                    );
-
-            child.setMeshRenderer(
-                    new MeshRenderer(
-                            cubeMesh,
-                            new Material(
-                                    Color.BLUE
-                            )
-                    )
-            );
-
-            parent.addChild(
-                    child
-            );
-
-
-            // =========================================
-            // CHILD 2
-            // =========================================
-
-            GameObject child2 =
-                    new GameObject(
-                            "Child 2"
-                    );
-
-            child2
-                    .getTransform()
-                    .setPosition(
-                            -1.5,
-                            0,
-                            0
-                    );
-
-            child2
-                    .getTransform()
-                    .setRotation(
-                            0,
-                            0,
-                            0
-                    );
-
-            child2
-                    .getTransform()
-                    .setScale(
-                            0.5,
-                            0.5,
-                            0.5
-                    );
-
-            child2.setMeshRenderer(
-                    new MeshRenderer(
-                            cubeMesh,
-                            new Material(
-                                    Color.GREEN
-                            )
-                    )
-            );
-
-            parent.addChild(
-                    child2
-            );
-
-
-            // =========================================
-            // RENDERER
-            // =========================================
-
-            Renderer3D renderer =
-                    new Renderer3D(
-                            scene
-                    );
-
-
-            // =========================================
-            // WINDOW
-            // =========================================
-
-            Window window =
-                    new Window(
-                            renderer
-                    );
-
-            window.setVisible(
-                    true
-            );
-
-
-            // =========================================
-            // GAME LOOP
-            // =========================================
-
-            startLoop(
-                    renderer,
-                    parent
-            );
-        });
+        }
+        SwingUtilities.invokeLater(
+                Main::start
+        );
     }
 
+    private static void start() {
 
-    // =============================================
-    // GAME LOOP
-    // =============================================
+        Scene scene =
+                new Scene("Main Scene");
+
+        GameObject cube =
+                new GameObject("Cube");
+
+        cube.getTransform()
+                .setPosition(0, 0, -5);
+
+        cube.setMeshRenderer(
+                new MeshRenderer(
+                        Mesh.createCube(),
+                        new Material(Color.RED)
+                )
+        );
+
+        scene.add(cube);
+
+        RendererManager rendererManager =
+                new RendererManager(
+                        scene,
+                        RenderBackend.OPENGL
+                );
+
+        EditorWindow editor =
+                new EditorWindow(
+                        scene,
+                        rendererManager
+                );
+
+        editor.setTitle(
+                "JForge Editor - " +
+                        rendererManager.getBackend()
+        );
+
+        editor.setVisible(true);
+
+        startLoop(
+                rendererManager,
+                editor
+        );
+    }
 
     private static void startLoop(
-            Renderer3D renderer,
-            GameObject parent) {
-
-        FPSCounter fpsCounter =
-                new FPSCounter();
+            RendererManager rendererManager,
+            EditorWindow editor
+    ) {
 
         Thread thread =
                 new Thread(() -> {
@@ -231,7 +99,11 @@ public class Main {
                     long previous =
                             System.nanoTime();
 
-                    while (true) {
+                    while (
+                            !Thread
+                                    .currentThread()
+                                    .isInterrupted()
+                    ) {
 
                         long current =
                                 System.nanoTime();
@@ -240,47 +112,28 @@ public class Main {
                                 (
                                         current -
                                                 previous
-                                )
-                                        /
+                                ) /
                                         1_000_000_000.0;
 
-                        previous =
-                                current;
+                        previous = current;
 
-                        /*
-                         * Actualizar juego.
-                         */
-                        update(
-                                parent,
-                                deltaTime
-                        );
+                        editor
+                                .getCameraController()
+                                .update(
+                                        deltaTime
+                                );
 
-                        /*
-                         * FPS.
-                         */
-                        fpsCounter.update();
+                        Renderer renderer =
+                                rendererManager
+                                        .getRenderer();
 
-                        renderer.setFPS(
-                                fpsCounter.getFPS()
-                        );
-
-                        /*
-                         * Tiempo del frame.
-                         */
-                        renderer.setFrameTime(
-                                deltaTime * 1000.0
-                        );
-
-                        /*
-                         * Dibujar.
-                         */
-                        renderer.repaint();
+                        if (renderer != null) {
+                            renderer.requestRender();
+                        }
 
                         try {
 
-                            Thread.sleep(
-                                    1
-                            );
+                            Thread.sleep(1);
 
                         } catch (
                                 InterruptedException e
@@ -299,23 +152,8 @@ public class Main {
                 "JForge-GameLoop"
         );
 
+        thread.setDaemon(true);
+
         thread.start();
-    }
-
-    // =============================================
-    // UPDATE
-    // =============================================
-
-    private static void update(
-            GameObject parent,
-            double deltaTime) {
-
-        parent
-                .getTransform()
-                .rotate(
-                        0,
-                        45.0 * deltaTime,
-                        0
-                );
     }
 }
